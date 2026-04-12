@@ -1,8 +1,8 @@
 [
 null,
-{"id":1,"battlerName":"KidsBtlr","characterIndex":0,"characterName":"KidsWalk","classId":1,"equips":[1,1,2,3,0],"faceIndex":0,"faceName":"KidsFace","traits":[],"initialLevel":1,"maxLevel":99,"name":"Kids","nickname":"","note":"","profile":""},
+{"id":1,"battlerName":"KidsBtlr","characterIndex":0,"characterName":"KidsWalk","classId":5,"equips":[1,1,2,3,0],"faceIndex":0,"faceName":"KidsFace","traits":[],"initialLevel":1,"maxLevel":99,"name":"Kids","nickname":"","note":"","profile":""},
 {"id":2,"battlerName":"TukangKayuBtlr","characterIndex":0,"characterName":"TukangKayuWalk","classId":5,"equips":[0,0,0,0,0],"faceIndex":0,"faceName":"TukangKayuFace","traits":[],"initialLevel":1,"maxLevel":99,"name":"Tukang Kayu","nickname":"","note":"","profile":""},
 {"id":3,"battlerName":"NelayanBtlr","characterIndex":0,"characterName":"NelayanWalk","classId":5,"equips":[0,0,0,0,0],"faceIndex":0,"faceName":"NelayanFace","traits":[],"initialLevel":1,"maxLevel":99,"name":"Nelayan","nickname":"","note":"","profile":""},
 {"id":4,"battlerName":"!miss_btl","characterIndex":0,"characterName":"!miss_walk","classId":4,"equips":[4,0,2,3,4],"faceIndex":0,"faceName":"Miss","traits":[],"initialLevel":1,"maxLevel":99,"name":"Miss","nickname":"","note":"","profile":""},
-{"id":5,"battlerName":"","characterIndex":0,"characterName":"","classId":1,"equips":[0,0,0,0,0],"faceIndex":0,"faceName":"","traits":[],"initialLevel":1,"maxLevel":99,"name":"","nickname":"","note":"","profile":""}
+{"id":5,"battlerName":"","characterIndex":1,"characterName":"Nature","classId":7,"equips":[0,0,0,0,0],"faceIndex":1,"faceName":"Nature","traits":[],"initialLevel":1,"maxLevel":99,"name":"Bocil Kucing","nickname":"","note":"","profile":""}
 ]

@@ -1,6 +1,7 @@
 [
 null,
-{"id":1,"expanded":false,"name":"Pinggiran desa","order":1,"parentId":0,"scrollX":1081.3333333333333,"scrollY":746},
-{"id":2,"expanded":true,"name":"Pedesaan","order":2,"parentId":0,"scrollX":1090.1818181818182,"scrollY":932},
-{"id":3,"expanded":false,"name":"Interior","order":3,"parentId":2,"scrollX":819,"scrollY":499.5}
+{"id":1,"expanded":false,"name":"Pinggiran desa","order":1,"parentId":0,"scrollX":1003.3333333333334,"scrollY":589.6666666666666},
+{"id":2,"expanded":true,"name":"Pedesaan","order":2,"parentId":0,"scrollX":959.1111111111111,"scrollY":887.5555555555555},
+{"id":3,"expanded":false,"name":"Interior","order":3,"parentId":2,"scrollX":728,"scrollY":444},
+{"id":4,"expanded":false,"name":"Pulau Pasar","order":4,"parentId":0,"scrollX":720.8888888888889,"scrollY":452.8888888888889}
 ]
