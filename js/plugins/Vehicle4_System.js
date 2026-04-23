@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.7 Final Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Reboard Fix
+ * @plugindesc [V.1.8 Final Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Reboard Fix
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -62,7 +62,7 @@
  * @value frontOrSide
  * @option Dari mana saja yang menempel
  * @value adjacentOrOn
- * @default frontOrOn
+ * @default adjacentOrOn
  *
  * @param Animation Mode
  * @parent --- Pengaturan Boarding ---
@@ -232,7 +232,7 @@
     CFG.speed = clamp(num(src.speed != null ? src.speed : P['Speed'], 5), 1, 6);
     CFG.encounter = clamp(num(src.encounter != null ? src.encounter : P['Encounter Rate'], 0), 0, 100);
     CFG.disableDash = src.disableDash != null ? !!src.disableDash : bool(P['Disable Dash'], true);
-    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'frontOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'frontOrOn');
+    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'adjacentOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'adjacentOrOn');
     CFG.animMode = pick(String(src.animMode != null ? src.animMode : P['Animation Mode'] || 'default'), ['default', 'instant', 'fade'], 'default');
     CFG.fade = clamp(num(src.fade != null ? src.fade : P['Fade Duration'], 18), 1, 120);
     CFG.autoSpawn = src.autoSpawn != null ? !!src.autoSpawn : bool(P['Auto Spawn'], false);
@@ -380,11 +380,11 @@
       case 'frontOnly':
         return front;
       case 'frontOrSide':
-        return front || side;
+        return front || side || adj;
       case 'adjacentOrOn':
         return on || adj;
       default:
-        return on || front;
+        return on || front || adj;
     }
   }
 
