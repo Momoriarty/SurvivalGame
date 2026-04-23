@@ -346,6 +346,7 @@
     p.setThrough(false);
     p._followers.synchronize(p.x, p.y, p.direction());
     p._v4Fade = 0;
+    p._vehicle4ExitDir = 0;
     $gameMap.autoplay();
   }
 
@@ -368,6 +369,16 @@
     }
     partyOpacity(255);
     return true;
+  }
+
+  function sideDirs(d) {
+    switch (d) {
+      case 2: return [6, 4];
+      case 4: return [2, 8];
+      case 6: return [2, 8];
+      case 8: return [6, 4];
+      default: return [6, 4];
+    }
   }
 
   loadCfg();
@@ -722,26 +733,45 @@
     if (this._vehicleType !== 'vehicle4') return _GP_canOff.call(this);
     var vv = v4();
     if (!vv) return false;
-    var d = this.direction(), x = $gameMap.roundXWithDirection(vv.x, d), y = $gameMap.roundYWithDirection(vv.y, d);
-    if (!$gameMap.isValid(x, y)) return false;
-    if (!$gameMap.isPassable(vv.x, vv.y, d)) return false;
-    if (!$gameMap.isPassable(x, y, this.reverseDir(d))) return false;
-    if ($gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y) || $gameMap.airship().posNt(x, y)) return false;
-    return !$gameMap.eventsXyNt(x, y).some(function(e) { return e.isNormalPriority() && !e._through; });
+
+    var dirs = sideDirs(this.direction());
+    for (var i = 0; i < dirs.length; i++) {
+      var d = dirs[i];
+      var x = $gameMap.roundXWithDirection(vv.x, d);
+      var y = $gameMap.roundYWithDirection(vv.y, d);
+
+      if (!$gameMap.isValid(x, y)) continue;
+      if (!$gameMap.isPassable(vv.x, vv.y, d)) continue;
+      if (!$gameMap.isPassable(x, y, this.reverseDir(d))) continue;
+      if ($gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y) || $gameMap.airship().posNt(x, y)) continue;
+      if ($gameMap.eventsXyNt(x, y).some(function(e) { return e.isNormalPriority() && !e._through; })) continue;
+
+      this._vehicle4ExitDir = d;
+      return true;
+    }
+
+    this._vehicle4ExitDir = 0;
+    return false;
   };
 
   var _GP_getOff = Game_Player.prototype.getOffVehicle;
   Game_Player.prototype.getOffVehicle = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_getOff.call(this);
     if (!this.canGetOffVehicle()) return false;
+
     var vv = v4();
+    var exitDir = this._vehicle4ExitDir || 0;
+    if (!exitDir) return false;
+
     this._vehicleGettingOff = true;
-    this.setDirection(vv.direction());
     vv.getOff();
     playSe(CFG.seOff, CFG.seOffVol);
-    this.forceMoveForward();
+
     this.setTransparent(false);
+    this.setThrough(true);
+    this.moveStraight(exitDir);
     this.gatherFollowers();
+
     if (isFade()) fadeStartIn(this);
     if (isInstant()) getOffFinish(this);
     return true;
