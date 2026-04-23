@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.5 Compact] Vehicle4 Custom System - Stable, Shorter Version
+ * @plugindesc [V.1.5 Compact Final] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -344,14 +344,22 @@
     p.setWalkAnime(true);
     p.setStepAnime(false);
     p.setThrough(false);
-    p._followers.synchronize(p.x, p.y, p.direction());
     p._v4Fade = 0;
     p._vehicle4ExitDir = 0;
+
+    p.followers().forEach(function(f) {
+      f.locate(p.x, p.y);
+      f.setDirection(p.direction());
+      f.setTransparent(false);
+      f.setThrough(false);
+    });
+
     $gameMap.autoplay();
   }
 
   function fadeStartOut(p) { p._v4Fade = CFG.fade; partyOpacity(255); }
   function fadeStartIn(p) { p._v4Fade = 0; partyOpacity(0); }
+
   function fadeOutDone(p) {
     if (p._v4Fade > 0) {
       partyOpacity(Math.round(255 * (p._v4Fade / CFG.fade)));
@@ -361,6 +369,7 @@
     partyOpacity(0);
     return true;
   }
+
   function fadeInDone(p) {
     if (p._v4Fade < CFG.fade) {
       partyOpacity(Math.round(255 * (p._v4Fade / CFG.fade)));
@@ -398,7 +407,9 @@
       this.setTransparent(false);
       this.initMoveSpeed();
       this.setImage(CFG.image, CFG.index);
-    } else _GV_init.call(this, type);
+    } else {
+      _GV_init.call(this, type);
+    }
   };
 
   var _GV_playBgm = Game_Vehicle.prototype.playBgm;
@@ -511,6 +522,7 @@
     if ($gamePlayer._vehicleType === 'vehicle4' && this === $gamePlayer) return false;
     return vv.posNt(x, y);
   };
+
   Game_Follower.prototype.isCollidedWithVehicles = function(x, y) {
     return Game_CharacterBase.prototype.isCollidedWithVehicles.call(this, x, y);
   };
@@ -522,7 +534,9 @@
     this._vehicle4 = new Game_Vehicle('vehicle4');
   };
 
-  Game_Map.prototype.vehicle4 = function() { return this._vehicle4; };
+  Game_Map.prototype.vehicle4 = function() {
+    return this._vehicle4;
+  };
 
   var _GM_vehicles = Game_Map.prototype.vehicles;
   Game_Map.prototype.vehicles = function() {
@@ -534,10 +548,19 @@
   var _GM_setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function(mapId) {
     _GM_setup.call(this, mapId);
+
     if (!this._vehicle4) this._vehicle4 = new Game_Vehicle('vehicle4');
-    if (pendingCfg) { loadCfg(pendingCfg); pendingCfg = null; refreshV4(); }
-    if (pendingData) { applyV4(this._vehicle4, pendingData); pendingData = null; }
-    else if (CFG.autoSpawn && CFG.spawnMapId > 0 && this._vehicle4._mapId === 0) {
+
+    if (pendingCfg) {
+      loadCfg(pendingCfg);
+      pendingCfg = null;
+      refreshV4();
+    }
+
+    if (pendingData) {
+      applyV4(this._vehicle4, pendingData);
+      pendingData = null;
+    } else if (CFG.autoSpawn && CFG.spawnMapId > 0 && this._vehicle4._mapId === 0 && $gamePlayer._vehicleType !== 'vehicle4') {
       this._vehicle4.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY);
     }
   };
@@ -554,10 +577,16 @@
   var _DM_extract = DataManager.extractSaveContents;
   DataManager.extractSaveContents = function(contents) {
     _DM_extract.call(this, contents);
+
     if (contents.vehicle4Config) {
-      if ($gameMap) { loadCfg(contents.vehicle4Config); refreshV4(); }
-      else pendingCfg = contents.vehicle4Config;
+      if ($gameMap) {
+        loadCfg(contents.vehicle4Config);
+        refreshV4();
+      } else {
+        pendingCfg = contents.vehicle4Config;
+      }
     }
+
     if (contents.vehicle4Data) {
       if ($gameMap && v4()) applyV4(v4(), contents.vehicle4Data);
       else pendingData = contents.vehicle4Data;
@@ -569,27 +598,46 @@
   Game_Interpreter.prototype.pluginCommand = function(command, args) {
     _GI_cmd.call(this, command, args);
     if (command !== 'Vehicle4') return;
+
     var sub = String(args[0] || ''), v = v4();
+
     switch (sub) {
       case 'Spawn':
-        if (v) { v.setLocation(Math.max(0, num(args[1], 0)), Math.max(0, num(args[2], 0)), Math.max(0, num(args[3], 0))); v.refresh(); }
+        if (v) {
+          v.setLocation(Math.max(0, num(args[1], 0)), Math.max(0, num(args[2], 0)), Math.max(0, num(args[3], 0)));
+          v.refresh();
+        }
         break;
       case 'Recall':
-        if (v && CFG.spawnMapId > 0) { v.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY); v.refresh(); }
+        if (v && CFG.spawnMapId > 0) {
+          v.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY);
+          v.refresh();
+        }
         break;
       case 'Hide':
-        if (v) { v.setLocation(0, 0, 0); v.refresh(); }
+        if (v) {
+          v.setLocation(0, 0, 0);
+          v.refresh();
+        }
         break;
       case 'SetSpeed':
-        CFG.speed = clamp(num(args[1], CFG.speed), 1, 6); refreshV4(); break;
+        CFG.speed = clamp(num(args[1], CFG.speed), 1, 6);
+        refreshV4();
+        break;
       case 'SetImage':
-        CFG.image = img(args[1]); CFG.index = clamp(num(args[2], 0), 0, 7); refreshV4(); break;
+        CFG.image = img(args[1]);
+        CFG.index = clamp(num(args[2], 0), 0, 7);
+        refreshV4();
+        break;
       case 'SetDirection':
-        if (v) v.setDirection(dir(args[1])); break;
+        if (v) v.setDirection(dir(args[1]));
+        break;
       case 'SetBoardRule':
-        CFG.boardRule = pick(String(args[1] || ''), ['frontOrOn','frontOnly','frontOrSide','adjacentOrOn'], CFG.boardRule); break;
+        CFG.boardRule = pick(String(args[1] || ''), ['frontOrOn','frontOnly','frontOrSide','adjacentOrOn'], CFG.boardRule);
+        break;
       case 'SetAnimMode':
-        CFG.animMode = pick(String(args[1] || ''), ['default','instant','fade'], CFG.animMode); break;
+        CFG.animMode = pick(String(args[1] || ''), ['default','instant','fade'], CFG.animMode);
+        break;
     }
   };
 
@@ -677,7 +725,10 @@
       if (vv) {
         vv._realX = this._realX;
         vv._realY = this._realY;
-        if (!this.isMoving()) { vv._x = this._x; vv._y = this._y; }
+        if (!this.isMoving()) {
+          vv._x = this._x;
+          vv._y = this._y;
+        }
         vv.setDirection(this.direction());
       }
     }
@@ -770,11 +821,33 @@
     this.setTransparent(false);
     this.setThrough(true);
     this.moveStraight(exitDir);
-    this.gatherFollowers();
 
     if (isFade()) fadeStartIn(this);
     if (isInstant()) getOffFinish(this);
     return true;
+  };
+
+  // Fix transfer map while riding vehicle4
+  var _GP_performTransfer = Game_Player.prototype.performTransfer;
+  Game_Player.prototype.performTransfer = function() {
+    var wasInVehicle4 = this._vehicleType === 'vehicle4';
+    _GP_performTransfer.call(this);
+
+    if (wasInVehicle4) {
+      var vv = v4();
+      if (vv) {
+        vv._mapId = $gameMap.mapId();
+        vv._x = this._x;
+        vv._y = this._y;
+        vv._realX = this._realX;
+        vv._realY = this._realY;
+        vv.setDirection(this.direction());
+        vv.setTransparent(false);
+        vv._driving = true;
+        vv._vehicleOn = true;
+        vv.refresh();
+      }
+    }
   };
 
 })();
