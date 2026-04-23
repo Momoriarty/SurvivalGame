@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.3] Database Kendaraan Ke-4 (Custom System) - Fixed
+ * @plugindesc [V.1.4] Database Kendaraan Ke-4 (Custom System) - Boarding Style Like Default Vehicle
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -157,29 +157,13 @@
  *
  * @help
  * ============================================================
- * Vehicle4_System v1.3 - Kendaraan Ke-4 Custom (Fixed)
+ * Vehicle4_System v1.4 - Kendaraan Ke-4 Custom
  * ============================================================
- * CHANGELOG v1.3:
- *  - FIX: Animasi fade-out halus saat naik (karakter tidak tiba-tiba hilang)
- *  - FIX: Animasi fade-in halus saat turun (karakter tidak tiba-tiba muncul)
- *  - FIX: Kamera tidak lagi bergeser prematur saat animasi naik/turun
- *  - FIX: Semua follower ikut fade bersama player secara sinkron
- *
- * CHANGELOG v1.2:
- *  - FIX: Player/event tidak bisa lagi tembus ke vehicle4
- *  - FIX: Animasi naik/turun kini berjalan untuk semua follower (>1 aktor)
- *  - FIX: Tidak bisa turun jika di depan ada event/karakter
- *
- * CHANGELOG v1.1:
- *  - FIX: Save/Load dipindah ke DataManager (data kini tersimpan benar)
- *  - FIX: Opacity pemain selalu kembali normal saat turun kendaraan
- *  - FIX: Vehicle4 tidak lagi bertabrakan dengan dirinya sendiri
- *  - FIX: Auto-spawn tidak crash jika save lama tidak memiliki vehicle4
- *  - FIX: Posisi vehicle4 tidak melompat saat bergerak (sync realX/realY)
- *  - FIX: extractSaveContents aman walau $gameMap belum siap
- *  - FIX: Encounter rate 0 kini benar-benar memblokir semua encounter
- *  - FIX: refresh() vehicle4 kini mereset animasi frame dengan benar
- *  - FIX: isOnLadder di-override agar tidak konflik saat di atas tile tangga
+ * CHANGELOG v1.4:
+ *  - FIX: Animasi naik/turun kini mengikuti style kendaraan bawaan MV
+ *  - FIX: Player maju ke tile vehicle saat naik
+ *  - FIX: Player turun ke depan vehicle seperti boat/ship default
+ *  - FIX: Hapus fade custom agar kamera dan timing lebih natural
  *
  * ============================================================
  * CARA PAKAI:
@@ -216,17 +200,8 @@
   var vSeOff = String(params['SE Get Off'] || '');
   var vSeOffVol = Number(params['SE Get Off Volume'] || 90);
 
-  // Variabel sementara untuk menjembatani DataManager.extractSaveContents
-  // dengan Game_Map.setup (karena $gameMap belum tentu siap saat extract)
   var _pendingVehicle4Save = null;
 
-  // Konstanta animasi fade naik/turun
-  // Durasi fade dalam frame (60fps = 1 detik). 18 frame ≈ 0.3 detik
-  var FADE_DURATION = 18;
-
-  //==========================================================
-  // HELPER: Play SE
-  //==========================================================
   function playSe(name, volume) {
     if (name) {
       AudioManager.playSe({ name: name, volume: volume, pitch: 100, pan: 0 });
@@ -256,7 +231,6 @@
     }
   };
 
-  // BGM kustom saat naik
   var _alias_Game_Vehicle_playBgm = Game_Vehicle.prototype.playBgm;
   Game_Vehicle.prototype.playBgm = function () {
     if (this._type === 'vehicle4') {
@@ -273,6 +247,9 @@
     if (this._type === 'vehicle4') {
       this._driving = true;
       this._vehicleOn = true;
+      this.setWalkAnime(true);
+      this.setStepAnime(false);
+      this.refresh();
       return;
     }
     _alias_Game_Vehicle_getOn.call(this);
@@ -283,6 +260,9 @@
     if (this._type === 'vehicle4') {
       this._driving = false;
       this._vehicleOn = false;
+      this.setWalkAnime(false);
+      this.setStepAnime(false);
+      this.refresh();
       return;
     }
     _alias_Game_Vehicle_getOff.call(this);
@@ -297,7 +277,6 @@
     }
   };
 
-  // FIX: refresh() kini mereset animasi frame agar tidak stuck
   var _alias_Game_Vehicle_refresh = Game_Vehicle.prototype.refresh;
   Game_Vehicle.prototype.refresh = function () {
     if (this._type === 'vehicle4') {
@@ -313,7 +292,7 @@
   var _alias_Game_Vehicle_isValid = Game_Vehicle.prototype.isValid;
   Game_Vehicle.prototype.isValid = function () {
     if (this._type === 'vehicle4') {
-      return (this._mapId > 0);
+      return this._mapId > 0;
     }
     return _alias_Game_Vehicle_isValid.call(this);
   };
@@ -326,7 +305,6 @@
     return _alias_Game_Vehicle_isLowest.call(this);
   };
 
-  // Passability kustom
   var _alias_Game_Vehicle_canPass = Game_Vehicle.prototype.canPass;
   Game_Vehicle.prototype.canPass = function (x, y, d) {
     if (this._type === 'vehicle4') {
@@ -342,7 +320,6 @@
           $gameMap.isPassable(x, y, d) &&
           $gameMap.isPassable(x2, y2, this.reverseDir(d));
       }
-      // normal
       if (!$gameMap.isPassable(x, y, d)) return false;
       if (!$gameMap.isPassable(x2, y2, this.reverseDir(d))) return false;
       return true;
@@ -350,7 +327,6 @@
     return _alias_Game_Vehicle_canPass.call(this, x, y, d);
   };
 
-  // FIX: vehicle4 tidak bertabrakan dengan dirinya sendiri
   var _alias_Game_Vehicle_isCollidedWithVehicles = Game_Vehicle.prototype.isCollidedWithVehicles;
   Game_Vehicle.prototype.isCollidedWithVehicles = function (x, y) {
     if (this._type === 'vehicle4') {
@@ -361,7 +337,6 @@
     return _alias_Game_Vehicle_isCollidedWithVehicles.call(this, x, y);
   };
 
-  // Collision dengan events untuk vehicle4
   var _alias_Game_Vehicle_isCollidedWithCharacters = Game_Vehicle.prototype.isCollidedWithCharacters;
   Game_Vehicle.prototype.isCollidedWithCharacters = function (x, y) {
     if (this._type === 'vehicle4') {
@@ -381,18 +356,14 @@
     return _alias_Game_Vehicle_isCollidedWithEvents.call(this, x, y);
   };
 
-
   //==========================================================
-  // BUG 1 FIX: Karakter & event tidak bisa tembus vehicle4
-  // isCollidedWithVehicles bawaan tidak mengenal vehicle4,
-  // sehingga semua karakter bisa jalan menembus kendaraan.
+  // Collision dengan vehicle4
   //==========================================================
 
   var _alias_Game_CharacterBase_isCollidedWithVehicles = Game_CharacterBase.prototype.isCollidedWithVehicles;
   Game_CharacterBase.prototype.isCollidedWithVehicles = function (x, y) {
     var result = _alias_Game_CharacterBase_isCollidedWithVehicles.call(this, x, y);
     if (result) return true;
-    // Jangan cek jika ini vehicle4 itu sendiri, atau pemain yg sedang naik
     if ($gameMap.vehicle4 && this === $gameMap.vehicle4()) return false;
     if ($gamePlayer._vehicleType === 'vehicle4' && this === $gamePlayer) return false;
     var v4 = $gameMap.vehicle4 && $gameMap.vehicle4();
@@ -400,7 +371,6 @@
     return false;
   };
 
-  // Follower juga harus ikut dicegah menembus vehicle4
   Game_Follower.prototype.isCollidedWithVehicles = function (x, y) {
     return Game_CharacterBase.prototype.isCollidedWithVehicles.call(this, x, y);
   };
@@ -422,25 +392,23 @@
   var _alias_Game_Map_vehicles = Game_Map.prototype.vehicles;
   Game_Map.prototype.vehicles = function () {
     var list = _alias_Game_Map_vehicles.call(this);
-    if (this._vehicle4) list.push(this._vehicle4);
+    if (this._vehicle4 && list.indexOf(this._vehicle4) < 0) {
+      list.push(this._vehicle4);
+    }
     return list;
   };
 
-  // FIX: Auto Spawn dengan null-check + inject data save yang tertunda
   var _alias_Game_Map_setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function (mapId) {
     _alias_Game_Map_setup.call(this, mapId);
 
-    // Jika ada data vehicle4 dari save file yang menunggu, inject sekarang
     if (_pendingVehicle4Save) {
       this._vehicle4 = _pendingVehicle4Save;
       _pendingVehicle4Save = null;
     } else if (!this._vehicle4) {
-      // Fallback: pastikan _vehicle4 selalu ada (misal save lama)
       this._vehicle4 = new Game_Vehicle('vehicle4');
     }
 
-    // Auto Spawn
     if (vAutoSpawn && vSpawnMap > 0 && this._vehicle4) {
       if (this._vehicle4._mapId === 0) {
         this._vehicle4.setLocation(vSpawnMap, vSpawnX, vSpawnY);
@@ -449,7 +417,7 @@
   };
 
   //==========================================================
-  // DATA_MANAGER — FIX: Save/Load dipindah ke sini (bukan Game_Map)
+  // DATA_MANAGER
   //==========================================================
 
   var _alias_DataManager_makeSaveContents = DataManager.makeSaveContents;
@@ -459,7 +427,6 @@
     return contents;
   };
 
-  // FIX: Gunakan variabel penampung sementara agar aman walau $gameMap belum siap
   var _alias_DataManager_extractSaveContents = DataManager.extractSaveContents;
   DataManager.extractSaveContents = function (contents) {
     _alias_DataManager_extractSaveContents.call(this, contents);
@@ -479,7 +446,7 @@
   var _alias_Game_Player_vehicle = Game_Player.prototype.vehicle;
   Game_Player.prototype.vehicle = function () {
     if (this._vehicleType === 'vehicle4') {
-      return ($gameMap.vehicle4 ? $gameMap.vehicle4() : null);
+      return $gameMap.vehicle4 ? $gameMap.vehicle4() : null;
     }
     return _alias_Game_Player_vehicle.call(this);
   };
@@ -508,14 +475,12 @@
     return _alias_Game_Player_isInShip.call(this);
   };
 
-  // FIX: isOnLadder di-override agar tidak konflik dengan tile tangga
   var _alias_Game_Player_isOnLadder = Game_Player.prototype.isOnLadder;
   Game_Player.prototype.isOnLadder = function () {
     if (this._vehicleType === 'vehicle4') return false;
     return _alias_Game_Player_isOnLadder.call(this);
   };
 
-  // Dash disable
   var _alias_Game_Player_isDashing = Game_Player.prototype.isDashing;
   Game_Player.prototype.isDashing = function () {
     if (this._vehicleType === 'vehicle4' && vDashOff) return false;
@@ -531,7 +496,6 @@
     return _alias_Game_Player_canMove.call(this);
   };
 
-  // FIX: canEncounter — encounter rate 0 memblokir semua jenis encounter
   var _alias_Game_Player_canEncounter = Game_Player.prototype.canEncounter;
   Game_Player.prototype.canEncounter = function () {
     if (this._vehicleType === 'vehicle4' && vEncRate === 0) {
@@ -540,7 +504,6 @@
     return _alias_Game_Player_canEncounter.call(this);
   };
 
-  // Encounter rate kustom (untuk rate > 0)
   var _alias_Game_Player_encounterProgressValue = Game_Player.prototype.encounterProgressValue;
   Game_Player.prototype.encounterProgressValue = function () {
     if (this._vehicleType === 'vehicle4') {
@@ -549,7 +512,6 @@
     return _alias_Game_Player_encounterProgressValue.call(this);
   };
 
-  // canPass player saat di vehicle4
   var _alias_Game_Player_canPassV4 = Game_Player.prototype.canPass;
   Game_Player.prototype.canPass = function (x, y, d) {
     if (this._vehicleType === 'vehicle4') {
@@ -567,7 +529,6 @@
     return _alias_Game_Player_canPassV4.call(this, x, y, d);
   };
 
-  // moveByInput
   var _alias_Game_Player_moveByInput = Game_Player.prototype.moveByInput;
   Game_Player.prototype.moveByInput = function () {
     if (this._vehicleType === 'vehicle4') {
@@ -582,17 +543,14 @@
     _alias_Game_Player_moveByInput.call(this);
   };
 
-  // FIX: updateMove — sync realX/realY dulu, _x/_y hanya setelah selesai bergerak
   var _alias_Game_Player_updateMove = Game_Player.prototype.updateMove;
   Game_Player.prototype.updateMove = function () {
     _alias_Game_Player_updateMove.call(this);
     if (this._vehicleType === 'vehicle4' && !this._vehicleGettingOff) {
       var v = $gameMap.vehicle4();
       if (v) {
-        // Selalu sync interpolasi real position
         v._realX = this._realX;
         v._realY = this._realY;
-        // Tile position hanya di-update setelah gerakan selesai
         if (!this.isMoving()) {
           v._x = this._x;
           v._y = this._y;
@@ -602,7 +560,6 @@
     }
   };
 
-  // getOnOffVehicle - dipanggil saat Enter
   var _alias_Game_Player_getOnOffVehicle = Game_Player.prototype.getOnOffVehicle;
   Game_Player.prototype.getOnOffVehicle = function () {
     if (this._vehicleType === 'vehicle4') {
@@ -622,109 +579,65 @@
     return _alias_Game_Player_getOnOffVehicle.call(this);
   };
 
-  //----------------------------------------------------------
-  // Helper: set opacity player + semua follower sekaligus
-  //----------------------------------------------------------
-  function setPartyOpacity(opacity) {
-    $gamePlayer.setOpacity(opacity);
-    $gamePlayer.followers().forEach(function (f) {
-      f.setOpacity(opacity);
-    });
-  }
-
-  //----------------------------------------------------------
-  // NAIK vehicle4:
-  // - Set _vehicleGettingOn = true agar canMove() blokir input
-  // - Simpan state awal, mulai fade-out counter
-  // - Kamera tidak bergeser sampai fade selesai
-  //----------------------------------------------------------
   Game_Player.prototype.getOnVehicle4 = function (v) {
     this._vehicleType = 'vehicle4';
-    this._vehicleGettingOn = true;   // blokir input selama animasi
-    this._v4FadeInCounter = 0;      // tidak dipakai saat naik, reset saja
-    this._v4FadeOutCounter = FADE_DURATION; // hitung mundur fade-out
-    this._v4PendingGetOn = v;      // simpan ref vehicle, selesaikan di updateVehicleGetOn
-    // Posisi & state awal — player masih terlihat, fade dilakukan per-frame
-    this.setPosition(v.x, v.y);
-    this.setThrough(false);
-    this.setWalkAnime(false);
-    this.setStepAnime(false);
-    // opacity masih 255, akan diturunkan bertahap di updateVehicleGetOn
+    this._vehicleGettingOn = true;
+    this._vehicle4Pending = v;
+    this.setThrough(true);
+
+    if (!v.pos(this.x, this.y)) {
+      this.forceMoveForward();
+    }
+
+    this.gatherFollowers();
     return true;
   };
 
-  //----------------------------------------------------------
-  // Update naik: fade-out player+followers frame demi frame
-  // Setelah counter habis, selesaikan getOn + mainkan SE/BGM
-  //----------------------------------------------------------
   var _alias_updateVehicleGetOn = Game_Player.prototype.updateVehicleGetOn;
   Game_Player.prototype.updateVehicleGetOn = function () {
     if (this._vehicleType === 'vehicle4') {
-      if (!this._vehicleGettingOn) return;
-      if (this._v4FadeOutCounter > 0) {
-        // Hitung opacity sesuai sisa counter (255 → 0 linear)
-        var ratio = this._v4FadeOutCounter / FADE_DURATION;
-        var opacity = Math.round(255 * ratio);
-        setPartyOpacity(opacity);
-        this._v4FadeOutCounter--;
-      } else {
-        // Fade selesai — sembunyikan penuh & tuntaskan getOn
-        setPartyOpacity(0);
-        var v = this._v4PendingGetOn;
+      if (this.areFollowersGathering() || this.isMoving()) {
+        return;
+      }
+
+      if (this._vehicleGettingOn) {
+        var v = this._vehicle4Pending || $gameMap.vehicle4();
         if (v) {
+          this.setDirection(v.direction());
+          this.setMoveSpeed(vSpd);
+          this.setTransparent(true);
+          this.setWalkAnime(false);
+          this.setStepAnime(false);
           v.getOn();
           playSe(vSeOn, vSeOnVol);
           if (vBgmName) {
             AudioManager.playBgm({ name: vBgmName, volume: vBgmVol, pitch: vBgmPitch, pan: 0 });
           }
         }
-        this.setMoveSpeed(vSpd);
-        this.setWalkAnime(true);
-        this._transparent = false;
-        this._v4PendingGetOn = null;
-        this._vehicleGettingOn = false; // buka input
-        this.gatherFollowers();
+        this._vehicleGettingOn = false;
+        this._vehicle4Pending = null;
       }
       return;
     }
     _alias_updateVehicleGetOn.call(this);
   };
 
-  //----------------------------------------------------------
-  // Update turun: tunggu gerakan & followers selesai,
-  // lalu fade-in player+followers frame demi frame
-  // Kamera tidak bergeser sampai fade-in selesai
-  //----------------------------------------------------------
   var _alias_updateVehicleGetOff = Game_Player.prototype.updateVehicleGetOff;
   Game_Player.prototype.updateVehicleGetOff = function () {
     if (this._vehicleType === 'vehicle4') {
-      if (!this._vehicleGettingOff) return;
-
-      // Fase 1: tunggu gerakan forceMoveForward + followers selesai
-      if (this.isMoving() || this.areFollowersGathering()) return;
-
-      // Fase 2: fade-in counter belum ada → inisialisasi
-      if (this._v4FadeInCounter === undefined || this._v4FadeInCounter < 0) {
-        this._v4FadeInCounter = 0;
+      if (this.areFollowersGathering() || this.isMoving()) {
+        return;
       }
 
-      if (this._v4FadeInCounter < FADE_DURATION) {
-        // Naikkan opacity 0 → 255 linear
-        var ratio = this._v4FadeInCounter / FADE_DURATION;
-        var opacity = Math.round(255 * ratio);
-        setPartyOpacity(opacity);
-        this._v4FadeInCounter++;
-      } else {
-        // Fade-in selesai — tuntaskan state turun
-        setPartyOpacity(255);
-        this._v4FadeInCounter = -1;
+      if (this._vehicleGettingOff) {
         this._vehicleGettingOff = false;
         this._vehicleType = 'walk';
+        this.setTransparent(false);
+        this.setMoveSpeed(4);
         this.setWalkAnime(true);
         this.setStepAnime(false);
         this.setThrough(false);
-        this.setMoveSpeed(4);
-        this._animationCount = 0;
+        this._followers.synchronize(this.x, this.y, this.direction());
         $gameMap.autoplay();
       }
       return;
@@ -732,7 +645,6 @@
     _alias_updateVehicleGetOff.call(this);
   };
 
-  // BUG 3 FIX: canGetOffVehicle — cek passability + event + karakter di tile tujuan
   var _alias_Game_Player_canGetOffVehicle = Game_Player.prototype.canGetOffVehicle;
   Game_Player.prototype.canGetOffVehicle = function () {
     if (this._vehicleType === 'vehicle4') {
@@ -740,37 +652,39 @@
       var d = this.direction();
       var x = $gameMap.roundXWithDirection(v.x, d);
       var y = $gameMap.roundYWithDirection(v.y, d);
-      // Cek apakah tile tujuan valid dan bisa dilewati
+
       if (!$gameMap.isValid(x, y)) return false;
+      if (!$gameMap.isPassable(v.x, v.y, d)) return false;
       if (!$gameMap.isPassable(x, y, this.reverseDir(d))) return false;
-      // Cek apakah ada event normal priority di tile tujuan
+
       var events = $gameMap.eventsXyNt(x, y);
       for (var i = 0; i < events.length; i++) {
         if (events[i].isNormalPriority() && !events[i]._through) return false;
       }
-      // Cek apakah ada vehicle lain di tile tujuan
+
       if ($gameMap.boat().posNt(x, y)) return false;
       if ($gameMap.ship().posNt(x, y)) return false;
       if ($gameMap.airship().posNt(x, y)) return false;
+
+      var v4 = $gameMap.vehicle4();
+      if (v4 && !v4.posNt(v.x, v.y) && v4.posNt(x, y)) return false;
+
       return true;
     }
     return _alias_Game_Player_canGetOffVehicle.call(this);
   };
 
-  // Turun vehicle4 + SE + inisialisasi fade-in counter
   var _alias_Game_Player_getOffVehicle = Game_Player.prototype.getOffVehicle;
   Game_Player.prototype.getOffVehicle = function () {
     if (this._vehicleType === 'vehicle4') {
       if (this.canGetOffVehicle()) {
         var v = $gameMap.vehicle4();
+        this._vehicleGettingOff = true;
+        this.setDirection(v.direction());
         v.getOff();
         playSe(vSeOff, vSeOffVol);
-        this._vehicleGettingOff = true;
-        this._v4FadeInCounter = 0;  // siapkan counter fade-in
-        // Pastikan party masih invisible saat mulai bergerak
-        setPartyOpacity(0);
-        this.setThrough(true);
         this.forceMoveForward();
+        this.setTransparent(false);
         this.gatherFollowers();
         return true;
       }
