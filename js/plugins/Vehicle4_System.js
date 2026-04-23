@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.6 Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Loop Map Safe
+ * @plugindesc [V.1.7 Final Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Reboard Fix
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -412,6 +412,8 @@
   }
 
   function getOffFinish(p) {
+    var exitDir = p._vehicle4ExitDir || 0;
+
     p._vehicleGettingOff = false;
     p._vehicleType = 'walk';
     p.setTransparent(false);
@@ -420,8 +422,11 @@
     p.setStepAnime(false);
     p.setThrough(false);
     p._v4Fade = 0;
-    p._vehicle4ExitDir = 0;
     p._v4PrevMoveSpeed = null;
+
+    if (exitDir) {
+      p.setDirection(p.reverseDir(exitDir));
+    }
 
     p.followers().forEach(function(f) {
       f.locate(p.x, p.y);
@@ -430,6 +435,7 @@
       f.setThrough(false);
     });
 
+    p._vehicle4ExitDir = 0;
     $gameMap.autoplay();
   }
 
