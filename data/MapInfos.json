@@ -1,7 +1,7 @@
 [
 null,
 {"id":1,"expanded":false,"name":"Desa Rahasia","order":1,"parentId":0,"scrollX":1082,"scrollY":960},
-{"id":2,"expanded":false,"name":"Pedesaan atas","order":2,"parentId":0,"scrollX":864,"scrollY":1208.3333333333333},
+{"id":2,"expanded":false,"name":"Pedesaan atas","order":2,"parentId":0,"scrollX":858.6666666666666,"scrollY":1197.6666666666667},
 {"id":3,"expanded":false,"name":"Interior","order":3,"parentId":2,"scrollX":630,"scrollY":536.3333333333334},
 {"id":4,"expanded":false,"name":"Pulau Pasar","order":6,"parentId":0,"scrollX":540.6666666666666,"scrollY":1112.3333333333333},
 {"id":5,"expanded":false,"name":"Pedesaan bawah","order":4,"parentId":0,"scrollX":811,"scrollY":457},
