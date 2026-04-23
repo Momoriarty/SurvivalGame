@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.5 Compact Final] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix
+ * @plugindesc [V.1.6 Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Loop Map Safe
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -195,14 +195,35 @@
 
   var P = PluginManager.parameters('Vehicle4_System');
   var CFG = {};
-  var pendingData = null, pendingCfg = null;
+  var pendingData = null;
+  var pendingCfg = null;
 
-  function num(v, d) { v = Number(v); return isNaN(v) ? d : v; }
-  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function bool(v, d) { return v === 'true' ? true : v === 'false' ? false : d; }
-  function pick(v, list, d) { return list.indexOf(v) >= 0 ? v : d; }
-  function img(v) { v = String(v || '').trim(); return v || 'Vehicle'; }
-  function dir(v) { v = num(v, 2); return [2,4,6,8].indexOf(v) >= 0 ? v : 2; }
+  function num(v, d) {
+    v = Number(v);
+    return isNaN(v) ? d : v;
+  }
+
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function bool(v, d) {
+    return v === 'true' ? true : v === 'false' ? false : d;
+  }
+
+  function pick(v, list, d) {
+    return list.indexOf(v) >= 0 ? v : d;
+  }
+
+  function img(v) {
+    v = String(v || '').trim();
+    return v || 'Vehicle';
+  }
+
+  function dir(v) {
+    v = num(v, 2);
+    return [2, 4, 6, 8].indexOf(v) >= 0 ? v : 2;
+  }
 
   function loadCfg(src) {
     src = src || {};
@@ -211,14 +232,14 @@
     CFG.speed = clamp(num(src.speed != null ? src.speed : P['Speed'], 5), 1, 6);
     CFG.encounter = clamp(num(src.encounter != null ? src.encounter : P['Encounter Rate'], 0), 0, 100);
     CFG.disableDash = src.disableDash != null ? !!src.disableDash : bool(P['Disable Dash'], true);
-    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'frontOrOn'), ['frontOrOn','frontOnly','frontOrSide','adjacentOrOn'], 'frontOrOn');
-    CFG.animMode = pick(String(src.animMode != null ? src.animMode : P['Animation Mode'] || 'default'), ['default','instant','fade'], 'default');
+    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'frontOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'frontOrOn');
+    CFG.animMode = pick(String(src.animMode != null ? src.animMode : P['Animation Mode'] || 'default'), ['default', 'instant', 'fade'], 'default');
     CFG.fade = clamp(num(src.fade != null ? src.fade : P['Fade Duration'], 18), 1, 120);
     CFG.autoSpawn = src.autoSpawn != null ? !!src.autoSpawn : bool(P['Auto Spawn'], false);
     CFG.spawnMapId = Math.max(0, num(src.spawnMapId != null ? src.spawnMapId : P['Spawn Map ID'], 0));
     CFG.spawnX = Math.max(0, num(src.spawnX != null ? src.spawnX : P['Spawn X'], 0));
     CFG.spawnY = Math.max(0, num(src.spawnY != null ? src.spawnY : P['Spawn Y'], 0));
-    CFG.passType = pick(String(src.passType != null ? src.passType : P['Passability Type'] || 'normal'), ['normal','land','water','any'], 'normal');
+    CFG.passType = pick(String(src.passType != null ? src.passType : P['Passability Type'] || 'normal'), ['normal', 'land', 'water', 'any'], 'normal');
     CFG.bgmName = String(src.bgmName != null ? src.bgmName : P['BGM Name'] || '');
     CFG.bgmVolume = clamp(num(src.bgmVolume != null ? src.bgmVolume : P['BGM Volume'], 90), 0, 100);
     CFG.bgmPitch = clamp(num(src.bgmPitch != null ? src.bgmPitch : P['BGM Pitch'], 100), 50, 150);
@@ -230,26 +251,54 @@
 
   function cfgSave() {
     return {
-      image: CFG.image, index: CFG.index, speed: CFG.speed, encounter: CFG.encounter,
-      disableDash: CFG.disableDash, boardRule: CFG.boardRule, animMode: CFG.animMode,
-      fade: CFG.fade, autoSpawn: CFG.autoSpawn, spawnMapId: CFG.spawnMapId,
-      spawnX: CFG.spawnX, spawnY: CFG.spawnY, passType: CFG.passType,
-      bgmName: CFG.bgmName, bgmVolume: CFG.bgmVolume, bgmPitch: CFG.bgmPitch,
-      seOn: CFG.seOn, seOnVol: CFG.seOnVol, seOff: CFG.seOff, seOffVol: CFG.seOffVol
+      image: CFG.image,
+      index: CFG.index,
+      speed: CFG.speed,
+      encounter: CFG.encounter,
+      disableDash: CFG.disableDash,
+      boardRule: CFG.boardRule,
+      animMode: CFG.animMode,
+      fade: CFG.fade,
+      autoSpawn: CFG.autoSpawn,
+      spawnMapId: CFG.spawnMapId,
+      spawnX: CFG.spawnX,
+      spawnY: CFG.spawnY,
+      passType: CFG.passType,
+      bgmName: CFG.bgmName,
+      bgmVolume: CFG.bgmVolume,
+      bgmPitch: CFG.bgmPitch,
+      seOn: CFG.seOn,
+      seOnVol: CFG.seOnVol,
+      seOff: CFG.seOff,
+      seOffVol: CFG.seOffVol
     };
   }
 
   function bgm() {
-    return { name: CFG.bgmName, volume: CFG.bgmVolume, pitch: CFG.bgmPitch, pan: 0 };
+    return {
+      name: CFG.bgmName,
+      volume: CFG.bgmVolume,
+      pitch: CFG.bgmPitch,
+      pan: 0
+    };
   }
 
   function playSe(name, vol) {
-    if (name) AudioManager.playSe({ name: name, volume: vol, pitch: 100, pan: 0 });
+    if (name) {
+      AudioManager.playSe({
+        name: name,
+        volume: vol,
+        pitch: 100,
+        pan: 0
+      });
+    }
   }
 
   function partyOpacity(op) {
     $gamePlayer.setOpacity(op);
-    $gamePlayer.followers().forEach(function(f) { f.setOpacity(op); });
+    $gamePlayer.followers().forEach(function(follower) {
+      follower.setOpacity(op);
+    });
   }
 
   function v4() {
@@ -292,29 +341,50 @@
     v._vehicleOn = !!d.vehicleOn;
     v.setTransparent(!!d.transparent);
     v.setDirection(dir(d.direction));
+    v._bgm = bgm();
     v.refresh();
   }
 
-  function isFade() { return CFG.animMode === 'fade'; }
-  function isInstant() { return CFG.animMode === 'instant'; }
+  function isFade() {
+    return CFG.animMode === 'fade';
+  }
+
+  function isInstant() {
+    return CFG.animMode === 'instant';
+  }
 
   function boardOk(player, vehicle) {
-    var px = player.x, py = player.y, vx = vehicle.x, vy = vehicle.y, d = player.direction();
-    var fx = $gameMap.roundXWithDirection(px, d), fy = $gameMap.roundYWithDirection(py, d);
+    var px = player.x;
+    var py = player.y;
+    var vx = vehicle.x;
+    var vy = vehicle.y;
+    var d = player.direction();
+
+    var fx = $gameMap.roundXWithDirection(px, d);
+    var fy = $gameMap.roundYWithDirection(py, d);
+
     var ld = d === 2 ? 6 : d === 4 ? 2 : d === 6 ? 8 : 4;
     var rd = d === 2 ? 4 : d === 4 ? 8 : d === 6 ? 2 : 6;
-    var lx = $gameMap.roundXWithDirection(px, ld), ly = $gameMap.roundYWithDirection(py, ld);
-    var rx = $gameMap.roundXWithDirection(px, rd), ry = $gameMap.roundYWithDirection(py, rd);
+
+    var lx = $gameMap.roundXWithDirection(px, ld);
+    var ly = $gameMap.roundYWithDirection(py, ld);
+    var rx = $gameMap.roundXWithDirection(px, rd);
+    var ry = $gameMap.roundYWithDirection(py, rd);
+
     var on = vehicle.pos(px, py);
     var front = vehicle.pos(fx, fy);
     var side = vehicle.pos(lx, ly) || vehicle.pos(rx, ry);
-    var adj = Math.abs(px - vx) + Math.abs(py - vy) === 1;
+    var adj = Math.abs($gameMap.deltaX(px, vx)) + Math.abs($gameMap.deltaY(py, vy)) === 1;
 
     switch (CFG.boardRule) {
-      case 'frontOnly': return front;
-      case 'frontOrSide': return front || side;
-      case 'adjacentOrOn': return on || adj;
-      default: return on || front;
+      case 'frontOnly':
+        return front;
+      case 'frontOrSide':
+        return front || side;
+      case 'adjacentOrOn':
+        return on || adj;
+      default:
+        return on || front;
     }
   }
 
@@ -328,9 +398,14 @@
     p.setStepAnime(false);
     p.setTransparent(true);
     p.setThrough(false);
+
     v.getOn();
     playSe(CFG.seOn, CFG.seOnVol);
-    if (CFG.bgmName) AudioManager.playBgm(bgm());
+
+    if (CFG.bgmName) {
+      AudioManager.playBgm(bgm());
+    }
+
     p._vehicleGettingOn = false;
     p._vehicle4Pending = null;
     p._v4Fade = 0;
@@ -340,12 +415,13 @@
     p._vehicleGettingOff = false;
     p._vehicleType = 'walk';
     p.setTransparent(false);
-    p.setMoveSpeed(4);
+    p.setMoveSpeed(p._v4PrevMoveSpeed != null ? p._v4PrevMoveSpeed : 4);
     p.setWalkAnime(true);
     p.setStepAnime(false);
     p.setThrough(false);
     p._v4Fade = 0;
     p._vehicle4ExitDir = 0;
+    p._v4PrevMoveSpeed = null;
 
     p.followers().forEach(function(f) {
       f.locate(p.x, p.y);
@@ -357,8 +433,15 @@
     $gameMap.autoplay();
   }
 
-  function fadeStartOut(p) { p._v4Fade = CFG.fade; partyOpacity(255); }
-  function fadeStartIn(p) { p._v4Fade = 0; partyOpacity(0); }
+  function fadeStartOut(p) {
+    p._v4Fade = CFG.fade;
+    partyOpacity(255);
+  }
+
+  function fadeStartIn(p) {
+    p._v4Fade = 0;
+    partyOpacity(0);
+  }
 
   function fadeOutDone(p) {
     if (p._v4Fade > 0) {
@@ -382,17 +465,42 @@
 
   function sideDirs(d) {
     switch (d) {
-      case 2: return [6, 4];
-      case 4: return [2, 8];
-      case 6: return [2, 8];
-      case 8: return [6, 4];
-      default: return [6, 4];
+      case 2:
+        return [6, 4];
+      case 4:
+        return [2, 8];
+      case 6:
+        return [2, 8];
+      case 8:
+        return [6, 4];
+      default:
+        return [6, 4];
     }
+  }
+
+  function canExitToTile(fromX, fromY, d) {
+    var x = $gameMap.roundXWithDirection(fromX, d);
+    var y = $gameMap.roundYWithDirection(fromY, d);
+
+    if (!$gameMap.isValid(x, y)) return false;
+    if (!$gameMap.isPassable(fromX, fromY, d)) return false;
+    if (!$gameMap.isPassable(x, y, Game_Character.prototype.reverseDir(d))) return false;
+
+    if ($gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y) || $gameMap.airship().posNt(x, y)) {
+      return false;
+    }
+
+    if ($gameMap.eventsXyNt(x, y).some(function(e) {
+      return e.isNormalPriority() && !e._through;
+    })) {
+      return false;
+    }
+
+    return true;
   }
 
   loadCfg();
 
-  // Vehicle
   var _GV_init = Game_Vehicle.prototype.initialize;
   Game_Vehicle.prototype.initialize = function(type) {
     if (type === 'vehicle4') {
@@ -449,8 +557,11 @@
 
   var _GV_speed = Game_Vehicle.prototype.initMoveSpeed;
   Game_Vehicle.prototype.initMoveSpeed = function() {
-    if (this._type === 'vehicle4') this._moveSpeed = CFG.speed;
-    else _GV_speed.call(this);
+    if (this._type === 'vehicle4') {
+      this._moveSpeed = CFG.speed;
+    } else {
+      _GV_speed.call(this);
+    }
   };
 
   var _GV_refresh = Game_Vehicle.prototype.refresh;
@@ -478,15 +589,20 @@
   var _GV_canPass = Game_Vehicle.prototype.canPass;
   Game_Vehicle.prototype.canPass = function(x, y, d) {
     if (this._type !== 'vehicle4') return _GV_canPass.call(this, x, y, d);
-    var x2 = $gameMap.roundXWithDirection(x, d), y2 = $gameMap.roundYWithDirection(y, d);
+
+    var x2 = $gameMap.roundXWithDirection(x, d);
+    var y2 = $gameMap.roundYWithDirection(y, d);
+
     if (!$gameMap.isValid(x2, y2)) return false;
     if (CFG.passType === 'any') return true;
     if (CFG.passType === 'water') return $gameMap.isShipPassable(x2, y2);
+
     if (CFG.passType === 'land') {
       return !$gameMap.isShipPassable(x2, y2) &&
         $gameMap.isPassable(x, y, d) &&
         $gameMap.isPassable(x2, y2, this.reverseDir(d));
     }
+
     return $gameMap.isPassable(x, y, d) && $gameMap.isPassable(x2, y2, this.reverseDir(d));
   };
 
@@ -500,26 +616,31 @@
 
   var _GV_colC = Game_Vehicle.prototype.isCollidedWithCharacters;
   Game_Vehicle.prototype.isCollidedWithCharacters = function(x, y) {
-    if (this._type === 'vehicle4') return this.isCollidedWithEvents(x, y) || this.isCollidedWithVehicles(x, y);
+    if (this._type === 'vehicle4') {
+      return this.isCollidedWithEvents(x, y) || this.isCollidedWithVehicles(x, y);
+    }
     return _GV_colC.call(this, x, y);
   };
 
   var _GV_colE = Game_Vehicle.prototype.isCollidedWithEvents;
   Game_Vehicle.prototype.isCollidedWithEvents = function(x, y) {
     if (this._type === 'vehicle4') {
-      return $gameMap.eventsXyNt(x, y).some(function(e) { return e.isNormalPriority(); });
+      return $gameMap.eventsXyNt(x, y).some(function(e) {
+        return e.isNormalPriority();
+      });
     }
     return _GV_colE.call(this, x, y);
   };
 
-  // Collision
   var _GCB_colV = Game_CharacterBase.prototype.isCollidedWithVehicles;
   Game_CharacterBase.prototype.isCollidedWithVehicles = function(x, y) {
     if (_GCB_colV.call(this, x, y)) return true;
+
     var vv = v4();
     if (!vv || !vv.isValid()) return false;
     if (this === vv) return false;
     if ($gamePlayer._vehicleType === 'vehicle4' && this === $gamePlayer) return false;
+
     return vv.posNt(x, y);
   };
 
@@ -527,7 +648,6 @@
     return Game_CharacterBase.prototype.isCollidedWithVehicles.call(this, x, y);
   };
 
-  // Map
   var _GM_create = Game_Map.prototype.createVehicles;
   Game_Map.prototype.createVehicles = function() {
     _GM_create.call(this);
@@ -549,7 +669,9 @@
   Game_Map.prototype.setup = function(mapId) {
     _GM_setup.call(this, mapId);
 
-    if (!this._vehicle4) this._vehicle4 = new Game_Vehicle('vehicle4');
+    if (!this._vehicle4) {
+      this._vehicle4 = new Game_Vehicle('vehicle4');
+    }
 
     if (pendingCfg) {
       loadCfg(pendingCfg);
@@ -565,7 +687,6 @@
     }
   };
 
-  // Save
   var _DM_make = DataManager.makeSaveContents;
   DataManager.makeSaveContents = function() {
     var c = _DM_make.call(this);
@@ -588,60 +709,73 @@
     }
 
     if (contents.vehicle4Data) {
-      if ($gameMap && v4()) applyV4(v4(), contents.vehicle4Data);
-      else pendingData = contents.vehicle4Data;
+      if ($gameMap && v4()) {
+        applyV4(v4(), contents.vehicle4Data);
+      } else {
+        pendingData = contents.vehicle4Data;
+      }
     }
   };
 
-  // Plugin Command
   var _GI_cmd = Game_Interpreter.prototype.pluginCommand;
   Game_Interpreter.prototype.pluginCommand = function(command, args) {
     _GI_cmd.call(this, command, args);
     if (command !== 'Vehicle4') return;
 
-    var sub = String(args[0] || ''), v = v4();
+    var sub = String(args[0] || '');
+    var v = v4();
 
     switch (sub) {
       case 'Spawn':
         if (v) {
-          v.setLocation(Math.max(0, num(args[1], 0)), Math.max(0, num(args[2], 0)), Math.max(0, num(args[3], 0)));
+          v.setLocation(
+            Math.max(0, num(args[1], 0)),
+            Math.max(0, num(args[2], 0)),
+            Math.max(0, num(args[3], 0))
+          );
           v.refresh();
         }
         break;
+
       case 'Recall':
-        if (v && CFG.spawnMapId > 0) {
+        if (v && CFG.spawnMapId > 0 && $gamePlayer._vehicleType !== 'vehicle4') {
           v.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY);
           v.refresh();
         }
         break;
+
       case 'Hide':
-        if (v) {
+        if (v && $gamePlayer._vehicleType !== 'vehicle4') {
           v.setLocation(0, 0, 0);
           v.refresh();
         }
         break;
+
       case 'SetSpeed':
         CFG.speed = clamp(num(args[1], CFG.speed), 1, 6);
         refreshV4();
         break;
+
       case 'SetImage':
         CFG.image = img(args[1]);
         CFG.index = clamp(num(args[2], 0), 0, 7);
         refreshV4();
         break;
+
       case 'SetDirection':
         if (v) v.setDirection(dir(args[1]));
         break;
+
       case 'SetBoardRule':
-        CFG.boardRule = pick(String(args[1] || ''), ['frontOrOn','frontOnly','frontOrSide','adjacentOrOn'], CFG.boardRule);
+        CFG.boardRule = pick(String(args[1] || ''), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], CFG.boardRule);
         break;
+
       case 'SetAnimMode':
-        CFG.animMode = pick(String(args[1] || ''), ['default','instant','fade'], CFG.animMode);
+        CFG.animMode = pick(String(args[1] || ''), ['default', 'instant', 'fade'], CFG.animMode);
         break;
     }
   };
 
-  // Player
   var _GP_vehicle = Game_Player.prototype.vehicle;
   Game_Player.prototype.vehicle = function() {
     return this._vehicleType === 'vehicle4' ? v4() : _GP_vehicle.call(this);
@@ -679,7 +813,9 @@
 
   var _GP_canMove = Game_Player.prototype.canMove;
   Game_Player.prototype.canMove = function() {
-    if (this._vehicleType === 'vehicle4') return !this._vehicleGettingOn && !this._vehicleGettingOff;
+    if (this._vehicleType === 'vehicle4') {
+      return _GP_canMove.call(this) && !this._vehicleGettingOn && !this._vehicleGettingOff;
+    }
     return _GP_canMove.call(this);
   };
 
@@ -691,18 +827,25 @@
 
   var _GP_encProg = Game_Player.prototype.encounterProgressValue;
   Game_Player.prototype.encounterProgressValue = function() {
-    return this._vehicleType === 'vehicle4'
-      ? _GP_encProg.call(this) * (CFG.encounter / 100)
-      : _GP_encProg.call(this);
+    if (this._vehicleType === 'vehicle4') {
+      return _GP_encProg.call(this) * (CFG.encounter / 100);
+    }
+    return _GP_encProg.call(this);
   };
 
   var _GP_canPass = Game_Player.prototype.canPass;
   Game_Player.prototype.canPass = function(x, y, d) {
     if (this._vehicleType !== 'vehicle4') return _GP_canPass.call(this, x, y, d);
+
     var vv = v4();
     if (!vv || !vv.canPass(x, y, d)) return false;
-    var x2 = $gameMap.roundXWithDirection(x, d), y2 = $gameMap.roundYWithDirection(y, d);
-    return !$gameMap.eventsXyNt(x2, y2).some(function(e) { return e.isNormalPriority() && !e._through; });
+
+    var x2 = $gameMap.roundXWithDirection(x, d);
+    var y2 = $gameMap.roundYWithDirection(y, d);
+
+    return !$gameMap.eventsXyNt(x2, y2).some(function(e) {
+      return e.isNormalPriority() && !e._through;
+    });
   };
 
   var _GP_moveInput = Game_Player.prototype.moveByInput;
@@ -720,15 +863,18 @@
   var _GP_updateMove = Game_Player.prototype.updateMove;
   Game_Player.prototype.updateMove = function() {
     _GP_updateMove.call(this);
+
     if (this._vehicleType === 'vehicle4' && !this._vehicleGettingOn && !this._vehicleGettingOff) {
       var vv = v4();
       if (vv) {
         vv._realX = this._realX;
         vv._realY = this._realY;
+
         if (!this.isMoving()) {
           vv._x = this._x;
           vv._y = this._y;
         }
+
         vv.setDirection(this.direction());
       }
     }
@@ -737,31 +883,48 @@
   var _GP_onOff = Game_Player.prototype.getOnOffVehicle;
   Game_Player.prototype.getOnOffVehicle = function() {
     var vv = v4();
-    if (this._vehicleType === 'vehicle4') return this.getOffVehicle();
-    if (vv && vv.isValid() && boardOk(this, vv)) return this.getOnVehicle4(vv);
+
+    if (this._vehicleType === 'vehicle4') {
+      return this.getOffVehicle();
+    }
+
+    if (vv && vv.isValid() && boardOk(this, vv)) {
+      return this.getOnVehicle4(vv);
+    }
+
     return _GP_onOff.call(this);
   };
 
   Game_Player.prototype.getOnVehicle4 = function(vv) {
+    this._v4PrevMoveSpeed = this._moveSpeed;
     this._vehicleType = 'vehicle4';
     this._vehicleGettingOn = true;
     this._vehicle4Pending = vv;
     this.setThrough(true);
+
     if (isFade()) fadeStartOut(this);
     if (!vv.pos(this.x, this.y)) this.forceMoveForward();
+
     this.gatherFollowers();
-    if (isInstant()) boardFinish(this, vv);
+
+    if (isInstant()) {
+      boardFinish(this, vv);
+    }
+
     return true;
   };
 
   var _GP_updateOn = Game_Player.prototype.updateVehicleGetOn;
   Game_Player.prototype.updateVehicleGetOn = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_updateOn.call(this);
+
     if (isInstant()) return;
+
     if (this.isMoving() || this.areFollowersGathering()) {
       if (isFade()) fadeOutDone(this);
       return;
     }
+
     if (this._vehicleGettingOn) {
       if (isFade() && !fadeOutDone(this)) return;
       boardFinish(this, this._vehicle4Pending || v4());
@@ -771,8 +934,10 @@
   var _GP_updateOff = Game_Player.prototype.updateVehicleGetOff;
   Game_Player.prototype.updateVehicleGetOff = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_updateOff.call(this);
+
     if (isInstant()) return;
     if (this.isMoving() || this.areFollowersGathering()) return;
+
     if (this._vehicleGettingOff) {
       if (isFade() && !fadeInDone(this)) return;
       getOffFinish(this);
@@ -782,23 +947,17 @@
   var _GP_canOff = Game_Player.prototype.canGetOffVehicle;
   Game_Player.prototype.canGetOffVehicle = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_canOff.call(this);
+
     var vv = v4();
     if (!vv) return false;
 
     var dirs = sideDirs(this.direction());
     for (var i = 0; i < dirs.length; i++) {
       var d = dirs[i];
-      var x = $gameMap.roundXWithDirection(vv.x, d);
-      var y = $gameMap.roundYWithDirection(vv.y, d);
-
-      if (!$gameMap.isValid(x, y)) continue;
-      if (!$gameMap.isPassable(vv.x, vv.y, d)) continue;
-      if (!$gameMap.isPassable(x, y, this.reverseDir(d))) continue;
-      if ($gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y) || $gameMap.airship().posNt(x, y)) continue;
-      if ($gameMap.eventsXyNt(x, y).some(function(e) { return e.isNormalPriority() && !e._through; })) continue;
-
-      this._vehicle4ExitDir = d;
-      return true;
+      if (canExitToTile(vv.x, vv.y, d)) {
+        this._vehicle4ExitDir = d;
+        return true;
+      }
     }
 
     this._vehicle4ExitDir = 0;
@@ -824,13 +983,14 @@
 
     if (isFade()) fadeStartIn(this);
     if (isInstant()) getOffFinish(this);
+
     return true;
   };
 
-  // Fix transfer map while riding vehicle4
   var _GP_performTransfer = Game_Player.prototype.performTransfer;
   Game_Player.prototype.performTransfer = function() {
     var wasInVehicle4 = this._vehicleType === 'vehicle4';
+
     _GP_performTransfer.call(this);
 
     if (wasInVehicle4) {
@@ -845,6 +1005,8 @@
         vv.setTransparent(false);
         vv._driving = true;
         vv._vehicleOn = true;
+        vv._bgm = bgm();
+        vv.initMoveSpeed();
         vv.refresh();
       }
     }
