@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.1.6 Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Loop Map Safe
+ * @plugindesc [V.2.0 Rebuild Stable] Vehicle4 Custom System - Stable Reboard, Stable Exit, Transfer Fix
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -62,7 +62,7 @@
  * @value frontOrSide
  * @option Dari mana saja yang menempel
  * @value adjacentOrOn
- * @default frontOrOn
+ * @default adjacentOrOn
  *
  * @param Animation Mode
  * @parent --- Pengaturan Boarding ---
@@ -232,7 +232,7 @@
     CFG.speed = clamp(num(src.speed != null ? src.speed : P['Speed'], 5), 1, 6);
     CFG.encounter = clamp(num(src.encounter != null ? src.encounter : P['Encounter Rate'], 0), 0, 100);
     CFG.disableDash = src.disableDash != null ? !!src.disableDash : bool(P['Disable Dash'], true);
-    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'frontOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'frontOrOn');
+    CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'adjacentOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'adjacentOrOn');
     CFG.animMode = pick(String(src.animMode != null ? src.animMode : P['Animation Mode'] || 'default'), ['default', 'instant', 'fade'], 'default');
     CFG.fade = clamp(num(src.fade != null ? src.fade : P['Fade Duration'], 18), 1, 120);
     CFG.autoSpawn = src.autoSpawn != null ? !!src.autoSpawn : bool(P['Auto Spawn'], false);
@@ -376,15 +376,17 @@
     var side = vehicle.pos(lx, ly) || vehicle.pos(rx, ry);
     var adj = Math.abs($gameMap.deltaX(px, vx)) + Math.abs($gameMap.deltaY(py, vy)) === 1;
 
+    if (on) return true;
+
     switch (CFG.boardRule) {
       case 'frontOnly':
         return front;
       case 'frontOrSide':
         return front || side;
       case 'adjacentOrOn':
-        return on || adj;
+        return adj;
       default:
-        return on || front;
+        return front || adj;
     }
   }
 
@@ -411,7 +413,15 @@
     p._v4Fade = 0;
   }
 
+  function clearExitCache(p) {
+    p._vehicle4ExitDir = 0;
+    p._vehicle4ExitX = null;
+    p._vehicle4ExitY = null;
+  }
+
   function getOffFinish(p) {
+    var exitDir = p._vehicle4ExitDir || 0;
+
     p._vehicleGettingOff = false;
     p._vehicleType = 'walk';
     p.setTransparent(false);
@@ -420,8 +430,11 @@
     p.setStepAnime(false);
     p.setThrough(false);
     p._v4Fade = 0;
-    p._vehicle4ExitDir = 0;
     p._v4PrevMoveSpeed = null;
+
+    if (exitDir) {
+      p.setDirection(p.reverseDir(exitDir));
+    }
 
     p.followers().forEach(function(f) {
       f.locate(p.x, p.y);
@@ -430,6 +443,7 @@
       f.setThrough(false);
     });
 
+    clearExitCache(p);
     $gameMap.autoplay();
   }
 
@@ -463,24 +477,32 @@
     return true;
   }
 
-  function sideDirs(d) {
+  function preferredExitDirs(d) {
     switch (d) {
       case 2:
-        return [6, 4];
+        return [6, 4, 2, 8];
       case 4:
-        return [2, 8];
+        return [2, 8, 4, 6];
       case 6:
-        return [2, 8];
+        return [2, 8, 6, 4];
       case 8:
-        return [6, 4];
+        return [6, 4, 8, 2];
       default:
-        return [6, 4];
+        return [6, 4, 2, 8];
     }
   }
 
+  function exitTarget(fromX, fromY, d) {
+    return {
+      x: $gameMap.roundXWithDirection(fromX, d),
+      y: $gameMap.roundYWithDirection(fromY, d)
+    };
+  }
+
   function canExitToTile(fromX, fromY, d) {
-    var x = $gameMap.roundXWithDirection(fromX, d);
-    var y = $gameMap.roundYWithDirection(fromY, d);
+    var pos = exitTarget(fromX, fromY, d);
+    var x = pos.x;
+    var y = pos.y;
 
     if (!$gameMap.isValid(x, y)) return false;
     if (!$gameMap.isPassable(fromX, fromY, d)) return false;
@@ -901,11 +923,11 @@
     this._vehicleGettingOn = true;
     this._vehicle4Pending = vv;
     this.setThrough(true);
-
-    if (isFade()) fadeStartOut(this);
-    if (!vv.pos(this.x, this.y)) this.forceMoveForward();
-
     this.gatherFollowers();
+
+    if (isFade()) {
+      fadeStartOut(this);
+    }
 
     if (isInstant()) {
       boardFinish(this, vv);
@@ -917,30 +939,16 @@
   var _GP_updateOn = Game_Player.prototype.updateVehicleGetOn;
   Game_Player.prototype.updateVehicleGetOn = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_updateOn.call(this);
-
     if (isInstant()) return;
-
-    if (this.isMoving() || this.areFollowersGathering()) {
-      if (isFade()) fadeOutDone(this);
-      return;
-    }
 
     if (this._vehicleGettingOn) {
+      if (this.areFollowersGathering()) {
+        if (isFade()) fadeOutDone(this);
+        return;
+      }
+
       if (isFade() && !fadeOutDone(this)) return;
       boardFinish(this, this._vehicle4Pending || v4());
-    }
-  };
-
-  var _GP_updateOff = Game_Player.prototype.updateVehicleGetOff;
-  Game_Player.prototype.updateVehicleGetOff = function() {
-    if (this._vehicleType !== 'vehicle4') return _GP_updateOff.call(this);
-
-    if (isInstant()) return;
-    if (this.isMoving() || this.areFollowersGathering()) return;
-
-    if (this._vehicleGettingOff) {
-      if (isFade() && !fadeInDone(this)) return;
-      getOffFinish(this);
     }
   };
 
@@ -951,16 +959,20 @@
     var vv = v4();
     if (!vv) return false;
 
-    var dirs = sideDirs(this.direction());
+    var dirs = preferredExitDirs(this.direction());
+    clearExitCache(this);
+
     for (var i = 0; i < dirs.length; i++) {
       var d = dirs[i];
       if (canExitToTile(vv.x, vv.y, d)) {
+        var pos = exitTarget(vv.x, vv.y, d);
         this._vehicle4ExitDir = d;
+        this._vehicle4ExitX = pos.x;
+        this._vehicle4ExitY = pos.y;
         return true;
       }
     }
 
-    this._vehicle4ExitDir = 0;
     return false;
   };
 
@@ -970,8 +982,7 @@
     if (!this.canGetOffVehicle()) return false;
 
     var vv = v4();
-    var exitDir = this._vehicle4ExitDir || 0;
-    if (!exitDir) return false;
+    if (!vv) return false;
 
     this._vehicleGettingOff = true;
     vv.getOff();
@@ -979,12 +990,31 @@
 
     this.setTransparent(false);
     this.setThrough(true);
-    this.moveStraight(exitDir);
 
-    if (isFade()) fadeStartIn(this);
-    if (isInstant()) getOffFinish(this);
+    if (this._vehicle4ExitX != null && this._vehicle4ExitY != null) {
+      this.setPosition(this._vehicle4ExitX, this._vehicle4ExitY);
+      this._realX = this._vehicle4ExitX;
+      this._realY = this._vehicle4ExitY;
+    }
+
+    if (isFade()) {
+      fadeStartIn(this);
+    } else {
+      getOffFinish(this);
+    }
 
     return true;
+  };
+
+  var _GP_updateOff = Game_Player.prototype.updateVehicleGetOff;
+  Game_Player.prototype.updateVehicleGetOff = function() {
+    if (this._vehicleType !== 'vehicle4') return _GP_updateOff.call(this);
+    if (isInstant()) return;
+
+    if (this._vehicleGettingOff) {
+      if (isFade() && !fadeInDone(this)) return;
+      getOffFinish(this);
+    }
   };
 
   var _GP_performTransfer = Game_Player.prototype.performTransfer;
