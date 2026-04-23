@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.2.0 Rebuild Stable] Vehicle4 Custom System - Stable Reboard, Stable Exit, Transfer Fix
+ * @plugindesc [V.2.1 Final Animated Stable] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Transfer Fix
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -388,6 +388,19 @@
       default:
         return front || adj;
     }
+  }
+
+  function dirBetweenTiles(fromX, fromY, toX, toY) {
+    var dx = $gameMap.deltaX(toX, fromX);
+    var dy = $gameMap.deltaY(toY, fromY);
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? 6 : 4;
+    } else if (dy !== 0) {
+      return dy > 0 ? 2 : 8;
+    }
+
+    return 0;
   }
 
   function boardFinish(p, v) {
@@ -929,6 +942,14 @@
       fadeStartOut(this);
     }
 
+    if (!isInstant() && !vv.pos(this.x, this.y)) {
+      var moveDir = dirBetweenTiles(this.x, this.y, vv.x, vv.y);
+      if (moveDir) {
+        this.setDirection(moveDir);
+        this.moveStraight(moveDir);
+      }
+    }
+
     if (isInstant()) {
       boardFinish(this, vv);
     }
@@ -942,7 +963,7 @@
     if (isInstant()) return;
 
     if (this._vehicleGettingOn) {
-      if (this.areFollowersGathering()) {
+      if (this.isMoving() || this.areFollowersGathering()) {
         if (isFade()) fadeOutDone(this);
         return;
       }
@@ -991,16 +1012,23 @@
     this.setTransparent(false);
     this.setThrough(true);
 
-    if (this._vehicle4ExitX != null && this._vehicle4ExitY != null) {
-      this.setPosition(this._vehicle4ExitX, this._vehicle4ExitY);
-      this._realX = this._vehicle4ExitX;
-      this._realY = this._vehicle4ExitY;
+    if (isInstant()) {
+      if (this._vehicle4ExitX != null && this._vehicle4ExitY != null) {
+        this.setPosition(this._vehicle4ExitX, this._vehicle4ExitY);
+        this._realX = this._vehicle4ExitX;
+        this._realY = this._vehicle4ExitY;
+      }
+      getOffFinish(this);
+      return true;
+    }
+
+    if (this._vehicle4ExitDir) {
+      this.setDirection(this._vehicle4ExitDir);
+      this.moveStraight(this._vehicle4ExitDir);
     }
 
     if (isFade()) {
       fadeStartIn(this);
-    } else {
-      getOffFinish(this);
     }
 
     return true;
@@ -1012,6 +1040,11 @@
     if (isInstant()) return;
 
     if (this._vehicleGettingOff) {
+      if (this.isMoving() || this.areFollowersGathering()) {
+        if (isFade()) fadeInDone(this);
+        return;
+      }
+
       if (isFade() && !fadeInDone(this)) return;
       getOffFinish(this);
     }
