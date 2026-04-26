@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.2.0 Rebuild Stable] Vehicle4 Custom System - Stable Reboard, Stable Exit, Transfer Fix
+ * @plugindesc [V.2.3 Latest Stable] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -90,7 +90,7 @@
  * @type boolean
  * @on Ya
  * @off Tidak
- * @default false
+ * @default true
  *
  * @param Spawn Map ID
  * @parent --- Pengaturan Spawn Otomatis ---
@@ -235,7 +235,7 @@
     CFG.boardRule = pick(String(src.boardRule != null ? src.boardRule : P['Board Rule'] || 'adjacentOrOn'), ['frontOrOn', 'frontOnly', 'frontOrSide', 'adjacentOrOn'], 'adjacentOrOn');
     CFG.animMode = pick(String(src.animMode != null ? src.animMode : P['Animation Mode'] || 'default'), ['default', 'instant', 'fade'], 'default');
     CFG.fade = clamp(num(src.fade != null ? src.fade : P['Fade Duration'], 18), 1, 120);
-    CFG.autoSpawn = src.autoSpawn != null ? !!src.autoSpawn : bool(P['Auto Spawn'], false);
+    CFG.autoSpawn = src.autoSpawn != null ? !!src.autoSpawn : bool(P['Auto Spawn'], true);
     CFG.spawnMapId = Math.max(0, num(src.spawnMapId != null ? src.spawnMapId : P['Spawn Map ID'], 0));
     CFG.spawnX = Math.max(0, num(src.spawnX != null ? src.spawnX : P['Spawn X'], 0));
     CFG.spawnY = Math.max(0, num(src.spawnY != null ? src.spawnY : P['Spawn Y'], 0));
@@ -388,6 +388,19 @@
       default:
         return front || adj;
     }
+  }
+
+  function dirBetweenTiles(fromX, fromY, toX, toY) {
+    var dx = $gameMap.deltaX(toX, fromX);
+    var dy = $gameMap.deltaY(toY, fromY);
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? 6 : 4;
+    } else if (dy !== 0) {
+      return dy > 0 ? 2 : 8;
+    }
+
+    return 0;
   }
 
   function boardFinish(p, v) {
@@ -704,8 +717,9 @@
     if (pendingData) {
       applyV4(this._vehicle4, pendingData);
       pendingData = null;
-    } else if (CFG.autoSpawn && CFG.spawnMapId > 0 && this._vehicle4._mapId === 0 && $gamePlayer._vehicleType !== 'vehicle4') {
-      this._vehicle4.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY);
+    } else if (CFG.autoSpawn && this._vehicle4._mapId === 0 && $gamePlayer._vehicleType !== 'vehicle4') {
+      var spawnMapId = CFG.spawnMapId > 0 ? CFG.spawnMapId : mapId;
+      this._vehicle4.setLocation(spawnMapId, CFG.spawnX, CFG.spawnY);
     }
   };
 
@@ -760,8 +774,9 @@
         break;
 
       case 'Recall':
-        if (v && CFG.spawnMapId > 0 && $gamePlayer._vehicleType !== 'vehicle4') {
-          v.setLocation(CFG.spawnMapId, CFG.spawnX, CFG.spawnY);
+        if (v && $gamePlayer._vehicleType !== 'vehicle4') {
+          var recallMapId = CFG.spawnMapId > 0 ? CFG.spawnMapId : $gameMap.mapId();
+          v.setLocation(recallMapId, CFG.spawnX, CFG.spawnY);
           v.refresh();
         }
         break;
@@ -857,7 +872,13 @@
 
   var _GP_canPass = Game_Player.prototype.canPass;
   Game_Player.prototype.canPass = function(x, y, d) {
-    if (this._vehicleType !== 'vehicle4') return _GP_canPass.call(this, x, y, d);
+    if (this._vehicleType !== 'vehicle4') {
+      return _GP_canPass.call(this, x, y, d);
+    }
+
+    if (this._vehicleGettingOn || this._vehicleGettingOff) {
+      return Game_Character.prototype.canPass.call(this, x, y, d);
+    }
 
     var vv = v4();
     if (!vv || !vv.canPass(x, y, d)) return false;
@@ -929,6 +950,14 @@
       fadeStartOut(this);
     }
 
+    if (!isInstant() && !vv.pos(this.x, this.y)) {
+      var moveDir = dirBetweenTiles(this.x, this.y, vv.x, vv.y);
+      if (moveDir) {
+        this.setDirection(moveDir);
+        this.moveStraight(moveDir);
+      }
+    }
+
     if (isInstant()) {
       boardFinish(this, vv);
     }
@@ -942,7 +971,7 @@
     if (isInstant()) return;
 
     if (this._vehicleGettingOn) {
-      if (this.areFollowersGathering()) {
+      if (this.isMoving() || this.areFollowersGathering()) {
         if (isFade()) fadeOutDone(this);
         return;
       }
@@ -991,16 +1020,23 @@
     this.setTransparent(false);
     this.setThrough(true);
 
-    if (this._vehicle4ExitX != null && this._vehicle4ExitY != null) {
-      this.setPosition(this._vehicle4ExitX, this._vehicle4ExitY);
-      this._realX = this._vehicle4ExitX;
-      this._realY = this._vehicle4ExitY;
+    if (isInstant()) {
+      if (this._vehicle4ExitX != null && this._vehicle4ExitY != null) {
+        this.setPosition(this._vehicle4ExitX, this._vehicle4ExitY);
+        this._realX = this._vehicle4ExitX;
+        this._realY = this._vehicle4ExitY;
+      }
+      getOffFinish(this);
+      return true;
+    }
+
+    if (this._vehicle4ExitDir) {
+      this.setDirection(this._vehicle4ExitDir);
+      this.moveStraight(this._vehicle4ExitDir);
     }
 
     if (isFade()) {
       fadeStartIn(this);
-    } else {
-      getOffFinish(this);
     }
 
     return true;
@@ -1012,6 +1048,11 @@
     if (isInstant()) return;
 
     if (this._vehicleGettingOff) {
+      if (this.isMoving() || this.areFollowersGathering()) {
+        if (isFade()) fadeInDone(this);
+        return;
+      }
+
       if (isFade() && !fadeInDone(this)) return;
       getOffFinish(this);
     }
