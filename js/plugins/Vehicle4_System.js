@@ -1,6 +1,6 @@
 /*:
  * @plugindesc [V.2.1 Final Animated Stable] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Transfer Fix
- * @author Nama Kamu
+ * @author ARIFIN
  *
  * @param --- Pengaturan Visual ---
  * @default
