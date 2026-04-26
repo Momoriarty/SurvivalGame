@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.2.3 Latest Stable] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
+ * @plugindesc [V.2.4 Final Reboard Fixed] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -376,17 +376,17 @@
     var side = vehicle.pos(lx, ly) || vehicle.pos(rx, ry);
     var adj = Math.abs($gameMap.deltaX(px, vx)) + Math.abs($gameMap.deltaY(py, vy)) === 1;
 
-    if (on) return true;
+    if (on || adj) return true;
 
     switch (CFG.boardRule) {
       case 'frontOnly':
         return front;
       case 'frontOrSide':
-        return front || side;
+        return front || side || adj;
       case 'adjacentOrOn':
-        return adj;
+        return on || adj;
       default:
-        return front || adj;
+        return on || front || side || adj;
     }
   }
 
@@ -921,6 +921,19 @@
         vv.setDirection(this.direction());
       }
     }
+  };
+
+  var _GP_triggerButtonAction = Game_Player.prototype.triggerButtonAction;
+  Game_Player.prototype.triggerButtonAction = function() {
+    if (Input.isTriggered('ok') && this._vehicleType !== 'vehicle4' && this.canMove()) {
+      var vv = v4();
+
+      if (vv && vv.isValid() && boardOk(this, vv)) {
+        return this.getOnVehicle4(vv);
+      }
+    }
+
+    return _GP_triggerButtonAction.call(this);
   };
 
   var _GP_onOff = Game_Player.prototype.getOnOffVehicle;
