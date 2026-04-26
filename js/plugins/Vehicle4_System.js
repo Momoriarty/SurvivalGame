@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.2.4 Final Reboard Fixed] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
+ * @plugindesc [V.2.5 Final Patched] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -325,7 +325,8 @@
       moveSpeed: v._moveSpeed || CFG.speed,
       driving: !!v._driving,
       vehicleOn: !!v._vehicleOn,
-      transparent: !!v._transparent
+      transparent: !!v._transparent,
+      hidden: !!v._v4Hidden
     };
   }
 
@@ -339,6 +340,7 @@
     v._moveSpeed = clamp(num(d.moveSpeed, CFG.speed), 1, 6);
     v._driving = !!d.driving;
     v._vehicleOn = !!d.vehicleOn;
+    v._v4Hidden = !!d.hidden;
     v.setTransparent(!!d.transparent);
     v.setDirection(dir(d.direction));
     v._bgm = bgm();
@@ -376,17 +378,16 @@
     var side = vehicle.pos(lx, ly) || vehicle.pos(rx, ry);
     var adj = Math.abs($gameMap.deltaX(px, vx)) + Math.abs($gameMap.deltaY(py, vy)) === 1;
 
-    if (on || adj) return true;
-
     switch (CFG.boardRule) {
       case 'frontOnly':
         return front;
       case 'frontOrSide':
-        return front || side || adj;
+        return front || side;
       case 'adjacentOrOn':
         return on || adj;
+      case 'frontOrOn':
       default:
-        return on || front || side || adj;
+        return on || front;
     }
   }
 
@@ -404,6 +405,8 @@
   }
 
   function boardFinish(p, v) {
+    if (!v) return;
+
     p.setPosition(v.x, v.y);
     p._realX = v._realX;
     p._realY = v._realY;
@@ -418,6 +421,7 @@
     playSe(CFG.seOn, CFG.seOnVol);
 
     if (CFG.bgmName) {
+      $gameSystem.saveWalkingBgm();
       AudioManager.playBgm(bgm());
     }
 
@@ -457,7 +461,12 @@
     });
 
     clearExitCache(p);
-    $gameMap.autoplay();
+
+    if (CFG.bgmName) {
+      $gameSystem.replayWalkingBgm();
+    } else {
+      $gameMap.autoplay();
+    }
   }
 
   function fadeStartOut(p) {
@@ -518,8 +527,14 @@
     var y = pos.y;
 
     if (!$gameMap.isValid(x, y)) return false;
-    if (!$gameMap.isPassable(fromX, fromY, d)) return false;
-    if (!$gameMap.isPassable(x, y, Game_Character.prototype.reverseDir(d))) return false;
+
+    if (CFG.passType === 'water') {
+      if (!$gameMap.isShipPassable(fromX, fromY)) return false;
+      if (!$gameMap.isPassable(x, y, Game_Character.prototype.reverseDir(d))) return false;
+    } else {
+      if (!$gameMap.isPassable(fromX, fromY, d)) return false;
+      if (!$gameMap.isPassable(x, y, Game_Character.prototype.reverseDir(d))) return false;
+    }
 
     if ($gameMap.boat().posNt(x, y) || $gameMap.ship().posNt(x, y) || $gameMap.airship().posNt(x, y)) {
       return false;
@@ -544,6 +559,7 @@
       this._mapId = 0;
       this._vehicleOn = false;
       this._driving = false;
+      this._v4Hidden = false;
       this._bgm = bgm();
       this._priorityType = 1;
       this._through = false;
@@ -606,6 +622,11 @@
       this._animationCount = 0;
       this._originalPattern = 1;
       this._pattern = 1;
+
+      if ($gameMap) {
+        this.setTransparent(this._mapId !== $gameMap.mapId());
+      }
+
       return;
     }
     _GV_refresh.call(this);
@@ -613,7 +634,7 @@
 
   var _GV_valid = Game_Vehicle.prototype.isValid;
   Game_Vehicle.prototype.isValid = function() {
-    return this._type === 'vehicle4' ? this._mapId > 0 : _GV_valid.call(this);
+    return this._type === 'vehicle4' ? this._mapId > 0 && !this._v4Hidden : _GV_valid.call(this);
   };
 
   var _GV_low = Game_Vehicle.prototype.isLowest;
@@ -717,10 +738,12 @@
     if (pendingData) {
       applyV4(this._vehicle4, pendingData);
       pendingData = null;
-    } else if (CFG.autoSpawn && this._vehicle4._mapId === 0 && $gamePlayer._vehicleType !== 'vehicle4') {
+    } else if (CFG.autoSpawn && !this._vehicle4._v4Hidden && this._vehicle4._mapId === 0 && $gamePlayer._vehicleType !== 'vehicle4') {
       var spawnMapId = CFG.spawnMapId > 0 ? CFG.spawnMapId : mapId;
       this._vehicle4.setLocation(spawnMapId, CFG.spawnX, CFG.spawnY);
     }
+
+    this._vehicle4.refresh();
   };
 
   var _DM_make = DataManager.makeSaveContents;
@@ -764,6 +787,7 @@
     switch (sub) {
       case 'Spawn':
         if (v) {
+          v._v4Hidden = false;
           v.setLocation(
             Math.max(0, num(args[1], 0)),
             Math.max(0, num(args[2], 0)),
@@ -776,6 +800,7 @@
       case 'Recall':
         if (v && $gamePlayer._vehicleType !== 'vehicle4') {
           var recallMapId = CFG.spawnMapId > 0 ? CFG.spawnMapId : $gameMap.mapId();
+          v._v4Hidden = false;
           v.setLocation(recallMapId, CFG.spawnX, CFG.spawnY);
           v.refresh();
         }
@@ -783,6 +808,7 @@
 
       case 'Hide':
         if (v && $gamePlayer._vehicleType !== 'vehicle4') {
+          v._v4Hidden = true;
           v.setLocation(0, 0, 0);
           v.refresh();
         }
@@ -1080,6 +1106,7 @@
     if (wasInVehicle4) {
       var vv = v4();
       if (vv) {
+        vv._v4Hidden = false;
         vv._mapId = $gameMap.mapId();
         vv._x = this._x;
         vv._y = this._y;
