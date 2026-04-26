@@ -3023,7 +3023,9 @@ Input.keyMapper = {
     100: 'left',    // numpad 4
     102: 'right',   // numpad 6
     104: 'up',      // numpad 8
-    120: 'debug'    // F9
+    120: 'debug',   // F9
+    192: '`'        // `
+
 };
 
 /**
