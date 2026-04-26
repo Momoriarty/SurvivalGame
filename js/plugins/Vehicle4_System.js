@@ -1,5 +1,5 @@
 /*:
- * @plugindesc [V.2.5 Final Patched] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
+ * @plugindesc [V.2.6 Reboard Fixed] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Auto Spawn Friendly
  * @author Nama Kamu
  *
  * @param --- Pengaturan Visual ---
@@ -436,10 +436,33 @@
     p._vehicle4ExitY = null;
   }
 
+  function makeVehicle4Standby(p) {
+    var vv = v4();
+    if (!vv) return;
+
+    vv._mapId = $gameMap.mapId();
+    vv._driving = false;
+    vv._vehicleOn = false;
+    vv._v4Hidden = false;
+    vv.setThrough(false);
+    vv.setWalkAnime(false);
+    vv.setStepAnime(false);
+    vv.setTransparent(false);
+
+    if (p && p._vehicle4LastVehicleDir) {
+      vv.setDirection(dir(p._vehicle4LastVehicleDir));
+    }
+
+    vv._bgm = bgm();
+    vv.refresh();
+  }
+
   function getOffFinish(p) {
     var exitDir = p._vehicle4ExitDir || 0;
 
     p._vehicleGettingOff = false;
+    p._vehicleGettingOn = false;
+    p._vehicle4Pending = null;
     p._vehicleType = 'walk';
     p.setTransparent(false);
     p.setMoveSpeed(p._v4PrevMoveSpeed != null ? p._v4PrevMoveSpeed : 4);
@@ -460,6 +483,8 @@
       f.setThrough(false);
     });
 
+    makeVehicle4Standby(p);
+    p._vehicle4LastVehicleDir = null;
     clearExitCache(p);
 
     if (CFG.bgmName) {
@@ -634,7 +659,12 @@
 
   var _GV_valid = Game_Vehicle.prototype.isValid;
   Game_Vehicle.prototype.isValid = function() {
-    return this._type === 'vehicle4' ? this._mapId > 0 && !this._v4Hidden : _GV_valid.call(this);
+    if (this._type === 'vehicle4') {
+      if (this._mapId <= 0 || this._v4Hidden) return false;
+      return !$gameMap || this._mapId === $gameMap.mapId();
+    }
+
+    return _GV_valid.call(this);
   };
 
   var _GV_low = Game_Vehicle.prototype.isLowest;
@@ -936,6 +966,8 @@
     if (this._vehicleType === 'vehicle4' && !this._vehicleGettingOn && !this._vehicleGettingOff) {
       var vv = v4();
       if (vv) {
+        vv._mapId = $gameMap.mapId();
+        vv._v4Hidden = false;
         vv._realX = this._realX;
         vv._realY = this._realY;
 
@@ -954,8 +986,11 @@
     if (Input.isTriggered('ok') && this._vehicleType !== 'vehicle4' && this.canMove()) {
       var vv = v4();
 
-      if (vv && vv.isValid() && boardOk(this, vv)) {
-        return this.getOnVehicle4(vv);
+      if (vv && vv.isValid()) {
+        vv.refresh();
+        if (boardOk(this, vv)) {
+          return this.getOnVehicle4(vv);
+        }
       }
     }
 
@@ -970,14 +1005,28 @@
       return this.getOffVehicle();
     }
 
-    if (vv && vv.isValid() && boardOk(this, vv)) {
-      return this.getOnVehicle4(vv);
+    if (vv && vv.isValid()) {
+      vv.refresh();
+      if (boardOk(this, vv)) {
+        return this.getOnVehicle4(vv);
+      }
     }
 
     return _GP_onOff.call(this);
   };
 
   Game_Player.prototype.getOnVehicle4 = function(vv) {
+    if (!vv) return false;
+
+    this._vehicleGettingOff = false;
+    this._vehicle4LastVehicleDir = null;
+    clearExitCache(this);
+
+    vv._mapId = $gameMap.mapId();
+    vv._v4Hidden = false;
+    vv.setTransparent(false);
+    vv.refresh();
+
     this._v4PrevMoveSpeed = this._moveSpeed;
     this._vehicleType = 'vehicle4';
     this._vehicleGettingOn = true;
@@ -1047,11 +1096,21 @@
   var _GP_getOff = Game_Player.prototype.getOffVehicle;
   Game_Player.prototype.getOffVehicle = function() {
     if (this._vehicleType !== 'vehicle4') return _GP_getOff.call(this);
-    if (!this.canGetOffVehicle()) return false;
 
     var vv = v4();
     if (!vv) return false;
 
+    vv._mapId = $gameMap.mapId();
+    vv._x = this._x;
+    vv._y = this._y;
+    vv._realX = this._realX;
+    vv._realY = this._realY;
+    vv._v4Hidden = false;
+    vv.setTransparent(false);
+
+    if (!this.canGetOffVehicle()) return false;
+
+    this._vehicle4LastVehicleDir = vv.direction();
     this._vehicleGettingOff = true;
     vv.getOff();
     playSe(CFG.seOff, CFG.seOffVol);
