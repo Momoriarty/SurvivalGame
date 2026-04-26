@@ -5,6 +5,8 @@
  * @plugindesc [V.1.6 Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Loop Map Safe
 >>>>>>> parent of b690541 (Update Vehicle4_System.js)
  * @author Nama Kamu
+=======
+>>>>>>> 99e7af9b3ca0192de25a34531c0f53ea7e72f4be
  *
  * @param --- Pengaturan Visual ---
  * @default
