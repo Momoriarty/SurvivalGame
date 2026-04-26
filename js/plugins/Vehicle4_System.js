@@ -1,11 +1,13 @@
 /*:
 <<<<<<< HEAD
  * @plugindesc [V.2.1 Final Animated Stable] Vehicle4 Custom System - Stable Reboard, Animated Board/Dismount, Transfer Fix
+<<<<<<< HEAD
 =======
  * @plugindesc [V.1.6 Fixed] Vehicle4 Custom System - Stable, Side Exit, Transfer Fix, Loop Map Safe
 >>>>>>> parent of b690541 (Update Vehicle4_System.js)
  * @author Nama Kamu
 =======
+ * @author ARIFIN
 >>>>>>> 99e7af9b3ca0192de25a34531c0f53ea7e72f4be
  *
  * @param --- Pengaturan Visual ---
